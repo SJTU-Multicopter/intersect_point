@@ -53,20 +53,20 @@ intersect_point::intersect_point()
 	drone_pose_sub = n.subscribe<geometry_msgs::Pose2D>("/drone_pose", 5, &intersect_point::droneCallBack, this);		//消息类型要改
 }
 
-void robotCallBack(const geometry_msgs::Pose2D::ConstPtr& robot_pose)
+void intersect_point::robotCallBack(const geometry_msgs::Pose2D::ConstPtr& robot_pose)
 {
 	robot.x = robot_pose->x;
 	robot.y = robot_pose->y;
 	robot.theta = robot_pose->theta;
 }
 
-void droneCallBack(const geometry_msgs::Pose2D::ConstPtr& drone_pose)
+void intersect_point::droneCallBack(const geometry_msgs::Pose2D::ConstPtr& drone_pose)
 {
 	drone.x = drone_pose->x;
 	drone.y = drone_pose->y;
 }
 
-void calc_intersect(robot_pose robot, const robot_pose drone)
+void intersect_point::calc_intersect(robot_pose robot, const robot_pose drone)
 {
 	if (robot.theta < PI/2 || robot.theta > 3 * PI / 2)
 	{
