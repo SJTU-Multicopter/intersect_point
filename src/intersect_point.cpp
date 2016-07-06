@@ -158,7 +158,7 @@ void intersect_point::calc_intersect(robot_pose robot, const robot_pose drone)
 
 int main(int argc, char **argv)
 {
-	ros::init(argc, argv, "Calculate intersect point");
+	ros::init(argc, argv, "CalculateIntersectPpoint");
 	intersect_point intersect_point;
 	ros::spin();
 }
