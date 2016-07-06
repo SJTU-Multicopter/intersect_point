@@ -58,6 +58,7 @@ void intersect_point::robotCallBack(const geometry_msgs::Pose2D::ConstPtr& robot
 	robot.x = robot_pose->x;
 	robot.y = robot_pose->y;
 	robot.theta = robot_pose->theta;
+	intersect_point::calc_intersect(robot, drone);
 }
 
 void intersect_point::droneCallBack(const geometry_msgs::Pose2D::ConstPtr& drone_pose)
