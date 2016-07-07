@@ -2,11 +2,12 @@
 #include "geometry_msgs/PoseStamped.h"
 #include <geometry_msgs/Pose2D.h>
 #include <cmath>
-
+#include "Eigen/Dense"
 #ifndef PI
 #define PI 3.14159265
 #endif
-
+using namespace std;
+using namespace Eigen;
 //场地宽度，改成实际测量值（y方向）
 float WIDTH = 6.0f;
 //己方场地高度，改成实际测量值（x方向）
@@ -19,7 +20,9 @@ float conterclockwise_rotate_angle = PI/2;
 struct robot_pose
 {
 	float x;
+	float x_history[4];
 	float y;
+	float y_history[4];
 	float theta;
 };
 
@@ -55,6 +58,21 @@ intersect_point::intersect_point()
 
 void intersect_point::robotCallBack(const geometry_msgs::Pose2D::ConstPtr& robot_pose)
 {
+	static float last_time;
+	float time_now = ros::Time::now().toSec();
+	if(time_now - last_time > 0.5){
+		last_time = time_now;
+		for(int i=3;i>0;i--){
+			robot.x_history[i] = robot.x_history[i-1];
+		}
+		robot.x_history[0] = robot.x;
+		for(int i=3;i>0;i--){
+			robot.y_history[i] = robot.y_history[i-1];
+		}
+	}
+
+
+	robot.y_history[0] = robot.y;
 	robot.x = robot_pose->x;
 	robot.y = robot_pose->y;
 	robot.theta = robot_pose->theta;
@@ -85,20 +103,50 @@ void intersect_point::calc_intersect(robot_pose robot, const robot_pose drone)
 		while(update)
 		{
 			//机器人运行的直线方程
-			float k = tan(robot.theta);
-			float b = robot.y - robot.x * k;
-
+		//	float k = tan(robot.theta);
+		//	float b = robot.y - robot.x * k;
+			Matrix<float, 4, 2> A;
+			Matrix<float, 4, 1> Y;
+			for(int i=0;i<4;i++){
+				A(i,0) = robot.x_history[i];
+				A(i,1) = 1;
+				Y(i,0) = robot.y_history[i];
+			}
+			MatrixXf B = A.transpose();
+			MatrixXf AA = B*A;
+			MatrixXf LU = AA.lu() .solve(B);
+			MatrixXf KB = LU * Y;
+			float k = KB(0);
+			float b = KB(1);
+			ROS_INFO("\nk: %f\nb: %f", k, b);
+			
+			
+// first get k and b according to several points passed by
 			//计算轨迹与场地边界的交点
 			float left_intersect_x = (WIDTH / 2 - b) / k;
 			float right_intersect_x = (-WIDTH / 2 - b) / k;
 			if (left_intersect_x < -HEIGHT || right_intersect_x < -HEIGHT)
 			{
-				//如果交点在底线后面，直接计算飞机位置到机器人运行轨迹的垂线段交点
-				intersect.x = (drone.x / k + drone.y - b) / (k + 1/k);
+				if(robot.x_history[3]>robot.x_history[0]){
+					//如果交点在底线后面，直接计算飞机位置到机器人运行轨迹的垂线段交点
+					if(robot.x>-1.0){
+						intersect.x = -1.0;
+					}
+					else if(robot.x>-2.0){
+						intersect.x = -2.0;
+					}
+					else if(robot.x>-3.0){
+						intersect.x = -3.0;
+					}
+					else{
+						intersect.x = -3.3;
+					}
+				}
+			//	intersect.x = (drone.x / k + drone.y - b) / (k + 1/k);
 				intersect.y = k * intersect.x + b;
 				update = false;
 				break;
-			}
+			} 
 			else if (left_intersect_x > right_intersect_x)
 			{
 				//如果交点在场地侧壁，把机器人位置更新成交点
@@ -159,6 +207,23 @@ void intersect_point::calc_intersect(robot_pose robot, const robot_pose drone)
 
 int main(int argc, char **argv)
 {
+	// float x_history[4] = {0,1,2,3};
+	// 		float y_history[4] = {1,2.2,2.8,4};
+	// 		Matrix<float, 4, 2> A;
+	// 		Matrix<float, 4, 1> Y;
+	// 		for(int i=0;i<4;i++){
+	// 			A(i,0) = x_history[i];
+	// 			A(i,1) = 1;
+	// 			Y(i,0) = y_history[i];
+	// 		}
+	// 		MatrixXf B = A.transpose();
+	// 		MatrixXf AA = B*A;
+	// 		MatrixXf LU = AA.lu() .solve(B);
+	// 		MatrixXf KB = LU * Y;
+	// 		float k = KB(0);
+	// 		float b = KB(1);
+	// 		ROS_INFO("\nk: %f\nb: %f", k, b);
+
 	ros::init(argc, argv, "CalculateIntersectPpoint");
 	intersect_point intersect_point;
 	ros::spin();
